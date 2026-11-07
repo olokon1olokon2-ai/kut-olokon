@@ -662,7 +662,13 @@ export default async (req, env) => {
     if (!['/api/login', '/api/setup', '/api/healthz'].includes(pathname)) user = await requireAuth(req);
     return await route(req, user, pathname);
   } catch (error) {
-    console.error('KUT API error:', error);
+    console.error('KUT API error details:', {
+  message: error?.message || String(error),
+  code: error?.code,
+  detail: error?.detail,
+  hint: error?.hint,
+  stack: error?.stack
+});
     const status = Number(error.status) || 500;
     return json({ error: status >= 500 ? 'Внутренняя ошибка сервера. Проверьте настройки Cloudflare, Hyperdrive и базы данных.' : error.message }, status);
   }
