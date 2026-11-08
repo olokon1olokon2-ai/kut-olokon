@@ -118,19 +118,26 @@ function render(){
  const filtered=entries.filter(matches);
  const approved=filtered.filter(x=>x.approvalStatus==='approved');
  const waiting=filtered.filter(x=>x.approvalStatus==='pending').length;
- $('count').textContent=`Найдено: ${filtered.length} · подтверждено: ${approved.length} · ожидают: ${waiting} · видно 10 мест`;
+ $('count').textContent=`Готовых пропусков: ${approved.length} · ожидают подтверждения: ${waiting}`;
  $('staffCount').textContent=filtered.length;
- const visible=approved.slice(0,10);
- if(query && !visible.length) $('cards').innerHTML='<div class="empty">По этому запросу нет подтверждённых пропусков.</div>';
- else {while(visible.length<10)visible.push({fio:'',dept:'',num:'',date:'',job:'',photo:''});$('cards').innerHTML=visible.map(passMarkup).join('');}
+ const visible=approved;
+ if(!visible.length) $('cards').innerHTML='<div class="empty">Пока нет готовых пропусков. Здесь отображаются только записи, подтверждённые другим сотрудником.</div>';
+ else $('cards').innerHTML=visible.map(passMarkup).join('');
  $('staffList').innerHTML=filtered.map(x=>{
   const links=(x.passportFiles||[]).map((f,j)=>`<a href="/api/employees/${encodeURIComponent(x.id)}/documents/${encodeURIComponent(f.id)}" target="_blank" rel="noopener">Документ ${j+1}: ${esc(f.name)}</a>`).join('');
   const creator=`<small>Добавил: ${esc(x.createdByName||'')}</small>`;
   const passportInfo=[x.docNo?`Документ № ${x.docNo}`:'',x.birthDate?`Рождение: ${x.birthDate}`:'',x.expiryDate?`Действует до: ${x.expiryDate}`:''].filter(Boolean).join(' · ');
   const canEdit = currentUser && x.approvalStatus==='rejected' && Number(x.createdBy)===Number(currentUser.id);
-  const actions = `${canEdit?`<button class="green" data-edit="${esc(x.id)}">Исправить</button>`:''}${currentUser&&currentUser.role==='admin'?`<button class="danger" data-del="${esc(x.id)}">Удалить</button>`:''}`;
+  const reprint = x.approvalStatus==='approved' ? `<button class="green" data-reprint="${esc(x.id)}">Повторно распечатать</button>` : '';
+  const actions = `${reprint}${canEdit?`<button class="green" data-edit="${esc(x.id)}">Исправить</button>`:''}${currentUser&&currentUser.role==='admin'?`<button class="danger" data-del="${esc(x.id)}">Удалить</button>`:''}`;
   return `<div class="staffitem"><div><strong>${esc(displayName(x))}</strong><span>${esc(x.dept)} · ${esc(x.job)} · пропуск № ${esc(x.num)}</span>${passportInfo?`<small>${esc(passportInfo)}</small>`:''}${statusLabel(x)}<br>${creator}${x.approvedByName?`<br><small>Подтвердил: ${esc(x.approvedByName)} · ${esc(x.approvedAt?new Date(x.approvedAt).toLocaleString('ru-RU'):'')}</small>`:''}${links?`<div class="doc-links">${links}</div>`:(x.passportRestricted?'<small>Паспортные данные скрыты; доступ есть у автора и проверяющего</small>':'<small>Паспорт не прикреплён</small>')}</div><div class="actions">${actions}</div></div>`;
  }).join('')||(query?'<p class="hint">По вашему запросу сотрудники не найдены.</p>':'<p class="hint">Пока нет сотрудников в общей базе.</p>');
+ $('staffList').querySelectorAll('[data-reprint]').forEach(b=>b.addEventListener('click',()=>{
+  const item=entries.find(x=>String(x.id)===String(b.dataset.reprint));
+  if(!item||item.approvalStatus!=='approved'){alert('Повторная печать доступна только для подтверждённого пропуска.');return}
+  // Повторная печать запускает обычную общую печать всех подтверждённых пропусков.
+  $('printBtn').click();
+ }));
  $('staffList').querySelectorAll('[data-del]').forEach(b=>b.addEventListener('click',async()=>{if(!confirm('Удалить эту запись и прикреплённые документы из общей базы?'))return;try{await api('/api/employees/'+encodeURIComponent(b.dataset.del),{method:'DELETE'});await loadEmployees()}catch(e){alert(e.message)}}));
  $('staffList').querySelectorAll('[data-edit]').forEach(b=>b.addEventListener('click',()=>beginEdit(b.dataset.edit)));
  renderApprovals();
@@ -170,7 +177,7 @@ $('addBtn').addEventListener('click',async()=>{
 });
 $('printBtn').addEventListener('click',()=>{
  const printable=entries.filter(x=>x.approvalStatus==='approved');if(!printable.length){alert('Пока нет подтверждённых пропусков. Сначала другой сотрудник должен подтвердить записи.');return}const root=$('cards');root.innerHTML='';const pages=Math.max(1,Math.ceil(printable.length/10));
- for(let i=0;i<pages;i++){const sheet=document.createElement('div');sheet.className='sheet';const batch=printable.slice(i*10,i*10+10);while(batch.length<10)batch.push({fio:'',dept:'',num:'',date:'',job:'',photo:''});batch.forEach(x=>sheet.insertAdjacentHTML('beforeend',passMarkup(x)));root.appendChild(sheet)}
+ for(let i=0;i<pages;i++){const sheet=document.createElement('div');sheet.className='sheet';const batch=printable.slice(i*10,i*10+10);batch.forEach(x=>sheet.insertAdjacentHTML('beforeend',passMarkup(x)));root.appendChild(sheet)}
  window.addEventListener('afterprint',()=>render(),{once:true});window.print();setTimeout(()=>{if(root.querySelector('.sheet'))render()},5000);
 });
 $('refreshBtn').addEventListener('click',async()=>{try{await loadEmployees()}catch(e){setStatus(e.message,true)}});
