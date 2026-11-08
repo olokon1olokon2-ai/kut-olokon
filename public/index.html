@@ -75,13 +75,18 @@ function api(url,options={}){
  });
 }
 function initials(value){const c=String(value||'').trim().replace(/[^A-Za-zА-Яа-яЁёӘәҒғҚқҢңӨөҰұҮүҺһІі]/g,'');return c?c[0].toLocaleUpperCase('ru-RU')+'.':''}
+// Отметки о печати хранятся в этом браузере.
+const PRINTED_KEY='kut_printed_pass_ids_v1';
+function getPrintedIds(){try{return new Set(JSON.parse(localStorage.getItem(PRINTED_KEY)||'[]').map(String))}catch{return new Set()}}
+function savePrintedIds(ids){try{localStorage.setItem(PRINTED_KEY,JSON.stringify([...ids]))}catch(e){console.warn('Не удалось сохранить отметки печати',e)}}
+function isPrinted(x){return getPrintedIds().has(String(x.id))}
 function displayName(x){const surname=String(x.surname||'').trim();const init=[initials(x.given),initials(x.middle)].filter(Boolean).join('');return surname?(init?surname+' '+init:surname):String(x.fio||'')}
 function parseFullName(value){const m=String(value||'').trim().match(/^(.+?)\s+([A-Za-zА-Яа-яЁёӘәҒғҚқҢңӨөҰұҮүҺһІі])\.?\s*([A-Za-zА-Яа-яЁёӘәҒғҚқҢңӨөҰұҮүҺһІі])?\.?$/);if(!m)return null;return {surname:m[1].trim(),given:m[2].toLocaleUpperCase('ru-RU'),middle:(m[3]||'').toLocaleUpperCase('ru-RU')}}
 function niceDate(s){if(!s)return '';if(/^\d{4}-\d{2}-\d{2}$/.test(s)){const [y,m,d]=s.split('-');return `${d}.${m}.${y}`}return s}
 function passMarkup(x){const p=x.photo?`<img class="emp-photo" src="${esc(x.photo)}" alt="Фото сотрудника" style="display:block">`:'';
 return `<article class="pass"><img class="art" src="${ART}" alt="Шаблон пропуска КУТ"><div class="val fio ${x.fio?'':'empty'}">${esc(displayName(x))}</div><div class="val dept ${x.dept?'':'empty'}">${esc(x.dept)}</div><div class="val number ${x.num?'':'empty'}">${esc(x.num)}</div><div class="val date ${x.date?'':'empty'}">${esc(niceDate(x.date))}</div><div class="val job ${x.job?'':'empty'}">${esc(x.job)}</div>${p}</article>`}
 function statusLabel(x){
- if(x.approvalStatus==='approved')return '<span class="state approved">Подтверждён</span>';
+ if(x.approvalStatus==='approved')return isPrinted(x)?'<span class="state approved">Подтверждён · уже распечатан</span>':'<span class="state approved">Подтверждён · не распечатан</span>';
  if(x.approvalStatus==='rejected')return `<span class="state rejected">Возвращён</span><div class="approval-meta">Причина: ${esc(x.rejectionReason||'не указана')} · ${esc(x.rejectedByName||'')}</div>`;
  return '<span class="state pending">Ожидает подтверждения</span>';
 }
@@ -128,13 +133,13 @@ function render(){
   const creator=`<small>Добавил: ${esc(x.createdByName||'')}</small>`;
   const passportInfo=[x.docNo?`Документ № ${x.docNo}`:'',x.birthDate?`Рождение: ${x.birthDate}`:'',x.expiryDate?`Действует до: ${x.expiryDate}`:''].filter(Boolean).join(' · ');
   const canEdit = currentUser && x.approvalStatus==='rejected' && Number(x.createdBy)===Number(currentUser.id);
-  const reprint = x.approvalStatus==='approved' ? `<button class="green" data-reprint="${esc(x.id)}">Повторно распечатать</button>` : '';
+  const reprint = x.approvalStatus==='approved' && !isPrinted(x) ? `<button class="green" data-reprint="${esc(x.id)}">Распечатать</button>` : '';
   const actions = `${reprint}${canEdit?`<button class="green" data-edit="${esc(x.id)}">Исправить</button>`:''}${currentUser&&currentUser.role==='admin'?`<button class="danger" data-del="${esc(x.id)}">Удалить</button>`:''}`;
   return `<div class="staffitem"><div><strong>${esc(displayName(x))}</strong><span>${esc(x.dept)} · ${esc(x.job)} · пропуск № ${esc(x.num)}</span>${passportInfo?`<small>${esc(passportInfo)}</small>`:''}${statusLabel(x)}<br>${creator}${x.approvedByName?`<br><small>Подтвердил: ${esc(x.approvedByName)} · ${esc(x.approvedAt?new Date(x.approvedAt).toLocaleString('ru-RU'):'')}</small>`:''}${links?`<div class="doc-links">${links}</div>`:(x.passportRestricted?'<small>Паспортные данные скрыты; доступ есть у автора и проверяющего</small>':'<small>Паспорт не прикреплён</small>')}</div><div class="actions">${actions}</div></div>`;
  }).join('')||(query?'<p class="hint">По вашему запросу сотрудники не найдены.</p>':'<p class="hint">Пока нет сотрудников в общей базе.</p>');
  $('staffList').querySelectorAll('[data-reprint]').forEach(b=>b.addEventListener('click',()=>{
   const item=entries.find(x=>String(x.id)===String(b.dataset.reprint));
-  if(!item||item.approvalStatus!=='approved'){alert('Повторная печать доступна только для подтверждённого пропуска.');return}
+  if(!item||item.approvalStatus!=='approved'||isPrinted(item)){alert('Этот пропуск уже отмечен как распечатанный или ещё не подтверждён.');return}
   // Повторная печать запускает обычную общую печать всех подтверждённых пропусков.
   $('printBtn').click();
  }));
@@ -176,9 +181,16 @@ $('addBtn').addEventListener('click',async()=>{
  try{if(editingId){await api('/api/employees/'+encodeURIComponent(editingId),{method:'PUT',body:fd})}else{await api('/api/employees',{method:'POST',body:fd})}clearForm();await loadEmployees();setStatus(editingId?'Исправления сохранены. Запись снова ожидает подтверждения другого сотрудника.':'Запись и паспортные документы сохранены. Пропуск ожидает подтверждения другого сотрудника и пока не попадёт в печать.',false)}catch(e){alert(e.message);setStatus(e.message,true)}finally{$('addBtn').disabled=false;if(!$('editingId').value)$('addBtn').textContent='Добавить пропуск'}
 });
 $('printBtn').addEventListener('click',()=>{
- const printable=entries.filter(x=>x.approvalStatus==='approved');if(!printable.length){alert('Пока нет подтверждённых пропусков. Сначала другой сотрудник должен подтвердить записи.');return}const root=$('cards');root.innerHTML='';const pages=Math.max(1,Math.ceil(printable.length/10));
+ const printed=getPrintedIds();
+ const printable=entries.filter(x=>x.approvalStatus==='approved'&&!printed.has(String(x.id)));
+ if(!printable.length){alert('Все подтверждённые пропуска уже отмечены как распечатанные.');return}
+ const root=$('cards');root.innerHTML='';const pages=Math.max(1,Math.ceil(printable.length/10));
  for(let i=0;i<pages;i++){const sheet=document.createElement('div');sheet.className='sheet';const batch=printable.slice(i*10,i*10+10);batch.forEach(x=>sheet.insertAdjacentHTML('beforeend',passMarkup(x)));root.appendChild(sheet)}
- window.addEventListener('afterprint',()=>render(),{once:true});window.print();setTimeout(()=>{if(root.querySelector('.sheet'))render()},5000);
+ window.print();
+ if(confirm('Печать выполнена? Нажмите «ОК», чтобы отметить эти пропуска как распечатанные. Если печать не состоялась — нажмите «Отмена».')){
+  printable.forEach(x=>printed.add(String(x.id)));savePrintedIds(printed);
+ }
+ render();
 });
 $('refreshBtn').addEventListener('click',async()=>{try{await loadEmployees()}catch(e){setStatus(e.message,true)}});
 // No background polling: the reviewer refreshes manually to avoid keeping Netlify Database awake.
