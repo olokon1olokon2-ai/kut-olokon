@@ -133,15 +133,19 @@ function render(){
   const creator=`<small>Добавил: ${esc(x.createdByName||'')}</small>`;
   const passportInfo=[x.docNo?`Документ № ${x.docNo}`:'',x.birthDate?`Рождение: ${x.birthDate}`:'',x.expiryDate?`Действует до: ${x.expiryDate}`:''].filter(Boolean).join(' · ');
   const canEdit = currentUser && x.approvalStatus==='rejected' && Number(x.createdBy)===Number(currentUser.id);
-  const reprint = x.approvalStatus==='approved' && !isPrinted(x) ? `<button class="green" data-reprint="${esc(x.id)}">Распечатать</button>` : '';
+  const reprint = x.approvalStatus==='approved' ? `<button class="green" data-reprint="${esc(x.id)}">${isPrinted(x)?'Восстановить / распечатать':'Распечатать'}</button>` : '';
   const actions = `${reprint}${canEdit?`<button class="green" data-edit="${esc(x.id)}">Исправить</button>`:''}${currentUser&&currentUser.role==='admin'?`<button class="danger" data-del="${esc(x.id)}">Удалить</button>`:''}`;
   return `<div class="staffitem"><div><strong>${esc(displayName(x))}</strong><span>${esc(x.dept)} · ${esc(x.job)} · пропуск № ${esc(x.num)}</span>${passportInfo?`<small>${esc(passportInfo)}</small>`:''}${statusLabel(x)}<br>${creator}${x.approvedByName?`<br><small>Подтвердил: ${esc(x.approvedByName)} · ${esc(x.approvedAt?new Date(x.approvedAt).toLocaleString('ru-RU'):'')}</small>`:''}${links?`<div class="doc-links">${links}</div>`:(x.passportRestricted?'<small>Паспортные данные скрыты; доступ есть у автора и проверяющего</small>':'<small>Паспорт не прикреплён</small>')}</div><div class="actions">${actions}</div></div>`;
  }).join('')||(query?'<p class="hint">По вашему запросу сотрудники не найдены.</p>':'<p class="hint">Пока нет сотрудников в общей базе.</p>');
  $('staffList').querySelectorAll('[data-reprint]').forEach(b=>b.addEventListener('click',()=>{
   const item=entries.find(x=>String(x.id)===String(b.dataset.reprint));
-  if(!item||item.approvalStatus!=='approved'||isPrinted(item)){alert('Этот пропуск уже отмечен как распечатанный или ещё не подтверждён.');return}
-  // Повторная печать запускает обычную общую печать всех подтверждённых пропусков.
-  $('printBtn').click();
+  if(!item||item.approvalStatus!=='approved'){alert('Восстановить можно только подтверждённый пропуск.');return}
+  const recovery=isPrinted(item);
+  if(recovery&&!confirm(`Восстановить пропуск сотрудника ${displayName(item)}? Будет напечатана копия с прежними данными и номером, новая запись не создаётся.`))return;
+  const root=$('cards');root.innerHTML='';const sheet=document.createElement('div');sheet.className='sheet';sheet.insertAdjacentHTML('beforeend',passMarkup(item));root.appendChild(sheet);
+  window.print();
+  if(!recovery){const printed=getPrintedIds();printed.add(String(item.id));savePrintedIds(printed)}
+  render();
  }));
  $('staffList').querySelectorAll('[data-del]').forEach(b=>b.addEventListener('click',async()=>{if(!confirm('Удалить эту запись и прикреплённые документы из общей базы?'))return;try{await api('/api/employees/'+encodeURIComponent(b.dataset.del),{method:'DELETE'});await loadEmployees()}catch(e){alert(e.message)}}));
  $('staffList').querySelectorAll('[data-edit]').forEach(b=>b.addEventListener('click',()=>beginEdit(b.dataset.edit)));
