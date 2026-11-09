@@ -24,7 +24,7 @@ button{border:0;border-radius:7px;padding:10px 13px;background:var(--blue);color
 .staff-search{margin-top:12px;padding:10px;background:#f7fafd;border:1px solid #e1eaf4;border-radius:9px}.staff-search label{display:block;font-weight:700;margin-bottom:5px}.staff-search input{width:100%;padding:10px;border:1px solid #b9c9dd;border-radius:7px;font:inherit}.staff-search small{display:block;color:#697991;margin-top:5px}
 #usersPanel{display:none;margin-bottom:10px}#usersPanel.open{display:block}.user-form{display:flex;gap:8px;flex-wrap:wrap;align-items:end}.user-form .field{margin:4px 0;min-width:170px;flex:1}.user-form input,.user-form select{width:100%;padding:9px;border:1px solid #b9c9dd;border-radius:7px}.user-row{display:flex;justify-content:space-between;gap:10px;align-items:center;padding:7px 0;border-bottom:1px solid #edf1f5;font-size:12px}
 .empty{padding:24px;text-align:center;color:#728198;background:#f7fafd;border:1px dashed #b8c8da;border-radius:10px}
-.approval-panel{margin-bottom:10px}.approval-row{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;padding:10px 0;border-bottom:1px solid #edf1f5}.approval-main{min-width:0}.approval-main strong{display:block;font-size:14px}.approval-meta{font-size:12px;color:#61728a;margin-top:4px;line-height:1.45}.approval-buttons{display:flex;gap:6px;flex-wrap:wrap;flex-shrink:0}.approval-buttons button{padding:7px 10px;font-size:11px}.state{display:inline-block;border-radius:20px;padding:3px 8px;font-size:11px;font-weight:700;margin:4px 0 0}.state.pending{background:#fff2cc;color:#765400}.state.approved{background:#e1f5e9;color:#166534}.state.rejected{background:#fee4e2;color:#9f1d18}.own-pending{font-size:11px;color:#805b00;margin-top:4px}
+.approval-panel{margin-bottom:10px}.approval-row{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;padding:10px 0;border-bottom:1px solid #edf1f5}.approval-main{min-width:0}.approval-main strong{display:block;font-size:14px}.approval-meta{font-size:12px;color:#61728a;margin-top:4px;line-height:1.45}.approval-buttons{display:flex;gap:6px;flex-wrap:wrap;flex-shrink:0}.approval-buttons button{padding:7px 10px;font-size:11px}.approval-details{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px;max-width:560px}.approval-details input{min-width:0;width:100%;padding:8px;border:1px solid #b9c9dd;border-radius:6px;font:12px Arial}.approval-details label{font-size:11px;font-weight:700;display:block;margin-bottom:3px}.approval-details .required-note{grid-column:1/-1;font-size:10px;color:#7b8798}@media(max-width:760px){.approval-details{grid-template-columns:1fr}}.state{display:inline-block;border-radius:20px;padding:3px 8px;font-size:11px;font-weight:700;margin:4px 0 0}.state.pending{background:#fff2cc;color:#765400}.state.approved{background:#e1f5e9;color:#166534}.state.rejected{background:#fee4e2;color:#9f1d18}.own-pending{font-size:11px;color:#805b00;margin-top:4px}
 @media(max-width:1100px){.layout{grid-template-columns:260px minmax(0,1fr)}.cards{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media(max-width:760px){.layout{grid-template-columns:1fr}.cards{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @page{size:A4 portrait;margin:4mm}
@@ -46,9 +46,30 @@ button{border:0;border-radius:7px;padding:10px 13px;background:var(--blue);color
 
 
 <div class="field"><label for="dept">Организация</label><input id="dept" placeholder="Введите название организации" required></div>
+<div class="field"><label for="department">Отдел</label><input id="department" placeholder="Например, монтажный участок" required></div>
 <div class="field"><label for="num">№ пропуска</label><input id="num" placeholder="Заполнится автоматически"></div>
 <div class="field"><label for="date">Дата выдачи</label><input id="date" type="date"></div>
-<div class="field"><label for="job">Должность этого сотрудника</label><select id="job"><option value="">Выберите должность</option><option>Прораб</option><option>Инженер</option><option>Монтажник</option><option>Электрик</option><option>Сварщик</option><option>Каменщик</option><option>Бетонщик</option><option>Разнорабочий</option><option>Водитель</option><option>Охранник</option><option>Технадзор</option><option>Другое</option></select></div>
+<div class="field"><label for="job">Должность этого сотрудника</label><select id="job" required>
+<option value="">Выберите должность</option>
+<optgroup label="Строительные работы">
+<option>Каменщик</option><option>Бетонщик</option><option>Арматурщик</option><option>Монолитчик</option><option>Плотник</option><option>Столяр</option><option>Разнорабочий</option><option>Подсобный рабочий</option><option>Монтажник</option><option>Демонтажник</option>
+</optgroup>
+<optgroup label="Отделочные работы">
+<option>Отделочник</option><option>Штукатур</option><option>Маляр</option><option>Шпаклёвщик</option><option>Плиточник</option><option>Гипсокартонщик</option><option>Фасадчик</option><option>Кровельщик</option><option>Стекольщик</option><option>Облицовщик</option>
+</optgroup>
+<optgroup label="Сантехника и инженерные сети">
+<option>Сантехник</option><option>Монтажник водопровода</option><option>Монтажник канализации</option><option>Монтажник отопления</option><option>Монтажник вентиляции</option><option>Монтажник кондиционеров</option><option>Электрик</option><option>Электромонтажник</option><option>Сварщик</option>
+</optgroup>
+<optgroup label="Техника и транспорт">
+<option>Крановщик</option><option>Машинист экскаватора</option><option>Машинист погрузчика</option><option>Машинист бульдозера</option><option>Водитель</option><option>Водитель самосвала</option><option>Оператор спецтехники</option><option>Механик</option>
+</optgroup>
+<optgroup label="Руководство и инженеры">
+<option>Начальник строительства</option><option>Начальник участка</option><option>Прораб</option><option>Мастер участка</option><option>Инженер</option><option>Инженер ПТО</option><option>Геодезист</option><option>Технадзор</option><option>Инженер по охране труда</option><option>Сметчик</option>
+</optgroup>
+<optgroup label="Склад и обслуживание">
+<option>Кладовщик</option><option>Грузчик</option><option>Уборщик</option><option>Завхоз</option><option>Охранник</option><option>Контролёр пропусков</option><option>Электромеханик</option>
+</optgroup>
+<option value="Другое">Другая должность</option></select></div>
 <div class="field" id="customJobWrap" hidden><label for="customJob">Укажите должность</label><input id="customJob" placeholder="Введите должность"></div>
 <div class="actions"><button type="button" id="addBtn" class="green">Добавить пропуск</button><button type="button" id="clearBtn" class="secondary">Очистить поля</button></div>
 <div class="notice" id="dbStatus">Подключение к общей базе...</div>
@@ -84,7 +105,7 @@ function displayName(x){const surname=String(x.surname||'').trim();const init=[i
 function parseFullName(value){const m=String(value||'').trim().match(/^(.+?)\s+([A-Za-zА-Яа-яЁёӘәҒғҚқҢңӨөҰұҮүҺһІі])\.?\s*([A-Za-zА-Яа-яЁёӘәҒғҚқҢңӨөҰұҮүҺһІі])?\.?$/);if(!m)return null;return {surname:m[1].trim(),given:m[2].toLocaleUpperCase('ru-RU'),middle:(m[3]||'').toLocaleUpperCase('ru-RU')}}
 function niceDate(s){if(!s)return '';if(/^\d{4}-\d{2}-\d{2}$/.test(s)){const [y,m,d]=s.split('-');return `${d}.${m}.${y}`}return s}
 function passMarkup(x){const p=x.photo?`<img class="emp-photo" src="${esc(x.photo)}" alt="Фото сотрудника" style="display:block">`:'';
-return `<article class="pass"><img class="art" src="${ART}" alt="Шаблон пропуска КУТ"><div class="val fio ${x.fio?'':'empty'}">${esc(displayName(x))}</div><div class="val dept ${x.dept?'':'empty'}">${esc(x.dept)}</div><div class="val number ${x.num?'':'empty'}">${esc(x.num)}</div><div class="val date ${x.date?'':'empty'}">${esc(niceDate(x.date))}</div><div class="val job ${x.job?'':'empty'}">${esc(x.job)}</div>${p}</article>`}
+return `<article class="pass"><img class="art" src="${ART}" alt="Шаблон пропуска КУТ"><div class="val fio ${x.fio?'':'empty'}">${esc(displayName(x))}</div><div class="val dept ${x.dept?'':'empty'}">${esc(x.dept)}${x.department?' · '+esc(x.department):''}</div><div class="val number ${x.num?'':'empty'}">${esc(x.num)}</div><div class="val date ${x.date?'':'empty'}">${esc(niceDate(x.date))}</div><div class="val job ${x.job?'':'empty'}">${esc(x.job)}</div>${p}</article>`}
 function statusLabel(x){
  if(x.approvalStatus==='approved')return isPrinted(x)?'<span class="state approved">Подтверждён · уже распечатан</span>':'<span class="state approved">Подтверждён · не распечатан</span>';
  if(x.approvalStatus==='rejected')return `<span class="state rejected">Возвращён</span><div class="approval-meta">Причина: ${esc(x.rejectionReason||'не указана')} · ${esc(x.rejectedByName||'')}</div>`;
@@ -100,15 +121,19 @@ function renderApprovals(){
   html+=pending.map(x=>{
    const docs=(x.passportFiles||[]).map((f,i)=>`<a href="/api/employees/${encodeURIComponent(x.id)}/documents/${encodeURIComponent(f.id)}" target="_blank" rel="noopener">Документ ${i+1}: ${esc(f.name)}</a>`).join(' · ');
    const passportInfo=[x.docNo?`Документ № ${x.docNo}`:'',x.birthDate?`Дата рождения: ${x.birthDate}`:'',x.expiryDate?`Действует до: ${x.expiryDate}`:''].filter(Boolean).join(' · ');
-   return `<div class="approval-row"><div class="approval-main"><strong>${esc(displayName(x))}</strong><div class="approval-meta">Организация: ${esc(x.dept)} · Должность: ${esc(x.job)} · Пропуск № ${esc(x.num)}<br>${passportInfo?esc(passportInfo)+'<br>':''}Добавил: ${esc(x.createdByName)} · ${esc(new Date(x.createdAt).toLocaleString('ru-RU'))}<br>${docs||'Паспортные документы не прикреплены'}</div></div><div class="approval-buttons"><button class="green" data-approve="${esc(x.id)}">Подтвердить</button><button class="danger" data-reject="${esc(x.id)}">Вернуть</button></div></div>`;
+   return `<div class="approval-row"><div class="approval-main"><strong>${esc(displayName(x))}</strong><div class="approval-meta">Организация сотрудника: ${esc(x.dept)} · Отдел: ${esc(x.department||'—')} · Должность: ${esc(x.job)} · Пропуск № ${esc(x.num)}<br>${passportInfo?esc(passportInfo)+'<br>':''}Добавил: ${esc(x.createdByName)} · ${esc(new Date(x.createdAt).toLocaleString('ru-RU'))}<br>${docs||'Паспортные документы не прикреплены'}</div><div class="approval-details"><div><label>Организация подтверждающей стороны *</label><input type="text" data-approval-org="${esc(x.id)}" maxlength="160" placeholder="Название организации" required></div><div><label>Должность подтверждающей стороны *</label><input type="text" data-approval-position="${esc(x.id)}" maxlength="120" placeholder="Ваша должность" required></div><div class="required-note">Оба поля обязательны для подтверждения пропуска.</div></div></div><div class="approval-buttons"><button class="green" data-approve="${esc(x.id)}">Подтвердить</button><button class="danger" data-reject="${esc(x.id)}">Вернуть</button></div></div>`;
   }).join('');
  } else html+='<div class="empty">Нет чужих записей, ожидающих подтверждения.</div>';
  if(own.length)html+=`<p class="own-pending">Ваших записей ожидает подтверждения другим сотрудником: ${own.length}. На этом компьютере под вашим логином подтвердить их нельзя.</p>`;
  host.innerHTML=html;
  host.querySelectorAll('[data-approve]').forEach(btn=>btn.addEventListener('click',async()=>{
   const item=entries.find(x=>x.id===btn.dataset.approve);
+  const row=btn.closest('.approval-row');
+  const organization=row?.querySelector(`[data-approval-org="${CSS.escape(btn.dataset.approve)}"]`)?.value.trim()||'';
+  const position=row?.querySelector(`[data-approval-position="${CSS.escape(btn.dataset.approve)}"]`)?.value.trim()||'';
+  if(!organization||!position){alert('Заполните организацию и должность подтверждающей стороны. Оба поля обязательны.');return}
   if(!item||!confirm(`Подтвердить данные сотрудника ${[item.surname,item.given,item.middle].filter(Boolean).join(' ')}? Убедитесь, что проверили паспорт.`))return;
-  btn.disabled=true;try{await api(`/api/employees/${encodeURIComponent(btn.dataset.approve)}/approve`,{method:'POST'});await loadEmployees();alert('Подтверждено. Пропуск теперь можно распечатать.')}catch(e){alert(e.message);btn.disabled=false}
+  btn.disabled=true;try{await api(`/api/employees/${encodeURIComponent(btn.dataset.approve)}/approve`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({organization,position})});await loadEmployees();alert('Подтверждено. Организация и должность подтверждающей стороны сохранены. Пропуск теперь можно распечатать.')}catch(e){alert(e.message);btn.disabled=false}
  }));
  host.querySelectorAll('[data-reject]').forEach(btn=>btn.addEventListener('click',async()=>{
   const reason=prompt('Укажите, что нужно исправить (причина возврата):');
@@ -118,7 +143,7 @@ function renderApprovals(){
 }
 function render(){
  const query=($('staffSearch')?.value||'').trim().toLocaleLowerCase('ru-RU');
- const matches=x=>!query||[displayName(x),x.surname,x.given,x.middle,x.fio,x.num,x.dept,x.job]
+ const matches=x=>!query||[displayName(x),x.surname,x.given,x.middle,x.fio,x.num,x.dept,x.department,x.job]
    .filter(Boolean).join(' ').toLocaleLowerCase('ru-RU').includes(query);
  const filtered=entries.filter(matches);
  const approved=filtered.filter(x=>x.approvalStatus==='approved');
@@ -133,19 +158,15 @@ function render(){
   const creator=`<small>Добавил: ${esc(x.createdByName||'')}</small>`;
   const passportInfo=[x.docNo?`Документ № ${x.docNo}`:'',x.birthDate?`Рождение: ${x.birthDate}`:'',x.expiryDate?`Действует до: ${x.expiryDate}`:''].filter(Boolean).join(' · ');
   const canEdit = currentUser && x.approvalStatus==='rejected' && Number(x.createdBy)===Number(currentUser.id);
-  const reprint = x.approvalStatus==='approved' ? `<button class="green" data-reprint="${esc(x.id)}">${isPrinted(x)?'Восстановить / распечатать':'Распечатать'}</button>` : '';
+  const reprint = x.approvalStatus==='approved' && !isPrinted(x) ? `<button class="green" data-reprint="${esc(x.id)}">Распечатать</button>` : '';
   const actions = `${reprint}${canEdit?`<button class="green" data-edit="${esc(x.id)}">Исправить</button>`:''}${currentUser&&currentUser.role==='admin'?`<button class="danger" data-del="${esc(x.id)}">Удалить</button>`:''}`;
-  return `<div class="staffitem"><div><strong>${esc(displayName(x))}</strong><span>${esc(x.dept)} · ${esc(x.job)} · пропуск № ${esc(x.num)}</span>${passportInfo?`<small>${esc(passportInfo)}</small>`:''}${statusLabel(x)}<br>${creator}${x.approvedByName?`<br><small>Подтвердил: ${esc(x.approvedByName)} · ${esc(x.approvedAt?new Date(x.approvedAt).toLocaleString('ru-RU'):'')}</small>`:''}${links?`<div class="doc-links">${links}</div>`:(x.passportRestricted?'<small>Паспортные данные скрыты; доступ есть у автора и проверяющего</small>':'<small>Паспорт не прикреплён</small>')}</div><div class="actions">${actions}</div></div>`;
+  return `<div class="staffitem"><div><strong>${esc(displayName(x))}</strong><span>${esc(x.dept)} · ${esc(x.department||'—')} · ${esc(x.job)} · пропуск № ${esc(x.num)}</span>${passportInfo?`<small>${esc(passportInfo)}</small>`:''}${statusLabel(x)}<br>${creator}${x.approvedByName?`<br><small>Подтвердил: ${esc(x.approvedByName)} · ${esc(x.approvedAt?new Date(x.approvedAt).toLocaleString('ru-RU'):'')}<br>Организация подтверждающего: ${esc(x.approvedByOrganization||'—')} · Должность: ${esc(x.approvedByPosition||'—')}</small>`:''}${links?`<div class="doc-links">${links}</div>`:(x.passportRestricted?'<small>Паспортные данные скрыты; доступ есть у автора и проверяющего</small>':'<small>Паспорт не прикреплён</small>')}</div><div class="actions">${actions}</div></div>`;
  }).join('')||(query?'<p class="hint">По вашему запросу сотрудники не найдены.</p>':'<p class="hint">Пока нет сотрудников в общей базе.</p>');
  $('staffList').querySelectorAll('[data-reprint]').forEach(b=>b.addEventListener('click',()=>{
   const item=entries.find(x=>String(x.id)===String(b.dataset.reprint));
-  if(!item||item.approvalStatus!=='approved'){alert('Восстановить можно только подтверждённый пропуск.');return}
-  const recovery=isPrinted(item);
-  if(recovery&&!confirm(`Восстановить пропуск сотрудника ${displayName(item)}? Будет напечатана копия с прежними данными и номером, новая запись не создаётся.`))return;
-  const root=$('cards');root.innerHTML='';const sheet=document.createElement('div');sheet.className='sheet';sheet.insertAdjacentHTML('beforeend',passMarkup(item));root.appendChild(sheet);
-  window.print();
-  if(!recovery){const printed=getPrintedIds();printed.add(String(item.id));savePrintedIds(printed)}
-  render();
+  if(!item||item.approvalStatus!=='approved'||isPrinted(item)){alert('Этот пропуск уже отмечен как распечатанный или ещё не подтверждён.');return}
+  // Повторная печать запускает обычную общую печать всех подтверждённых пропусков.
+  $('printBtn').click();
  }));
  $('staffList').querySelectorAll('[data-del]').forEach(b=>b.addEventListener('click',async()=>{if(!confirm('Удалить эту запись и прикреплённые документы из общей базы?'))return;try{await api('/api/employees/'+encodeURIComponent(b.dataset.del),{method:'DELETE'});await loadEmployees()}catch(e){alert(e.message)}}));
  $('staffList').querySelectorAll('[data-edit]').forEach(b=>b.addEventListener('click',()=>beginEdit(b.dataset.edit)));
@@ -154,11 +175,11 @@ function render(){
 $('staffSearch').addEventListener('input',render);
 function setStatus(msg,isError=false){$('dbStatus').textContent=msg;$('dbStatus').style.color=isError?'#b42318':'#174a7a';$('dbStatus').style.background=isError?'#fff0ef':'#eef6ff'}
 async function loadEmployees(){const data=await api('/api/employees');entries=data.employees||[];render();const ok=entries.filter(x=>x.approvalStatus==='approved').length;const pending=entries.filter(x=>x.approvalStatus==='pending').length;setStatus(`Общая база подключена. Всего: ${entries.length}; подтверждено: ${ok}; ожидает проверки: ${pending}. Паспортные файлы защищены шифрованием на сервере.`)}
-function clearForm(){['fioFull','dept','num','customJob'].forEach(id=>$(id).value='');$('job').value='';$('customJobWrap').hidden=true;$('photo').value='';$('passport').value='';selectedPassportFiles=[];$('editingId').value='';$('formTitle').textContent='Новый сотрудник';$('addBtn').textContent='Добавить пропуск';$('passportStatus').textContent='Для новой записи обязательно прикрепите паспорт. Суммарный размер фото и сканов — до 3,2 МБ. При исправлении старые документы сохраняются, если не загружать новые.';$('date').value=new Date().toISOString().slice(0,10)}
+function clearForm(){['fioFull','dept','department','num','customJob'].forEach(id=>$(id).value='');$('job').value='';$('customJobWrap').hidden=true;$('photo').value='';$('passport').value='';selectedPassportFiles=[];$('editingId').value='';$('formTitle').textContent='Новый сотрудник';$('addBtn').textContent='Добавить пропуск';$('passportStatus').textContent='Для новой записи обязательно прикрепите паспорт. Суммарный размер фото и сканов — до 3,2 МБ. При исправлении старые документы сохраняются, если не загружать новые.';$('date').value=new Date().toISOString().slice(0,10)}
 function beginEdit(id){
  const x=entries.find(item=>item.id===id);if(!x||x.approvalStatus!=='rejected'||Number(x.createdBy)!==Number(currentUser.id))return;
  $('editingId').value=x.id;$('fioFull').value=displayName(x);
- $('dept').value=x.dept||'';$('num').value=x.num||'';$('date').value=x.date||'';
+ $('dept').value=x.dept||'';$('department').value=x.department||'';$('num').value=x.num||'';$('date').value=x.date||'';
  const options=Array.from($('job').options).map(o=>o.value);if(options.includes(x.job)){$('job').value=x.job;$('customJobWrap').hidden=true}else{$('job').value='Другое';$('customJobWrap').hidden=false;$('customJob').value=x.job||''}
  $('photo').value='';$('passport').value='';selectedPassportFiles=[];$('formTitle').textContent='Исправление возвращённой записи';$('addBtn').textContent='Сохранить и отправить повторно';
  $('passportStatus').textContent=`Сейчас прикреплено документов: ${(x.passportFiles||[]).length}. Не выбирайте новые файлы, чтобы оставить старые; выберите новые, чтобы заменить комплект.`;
@@ -171,13 +192,13 @@ $('addBtn').addEventListener('click',async()=>{
  const parsedName=parseFullName($('fioFull').value);const surname=parsedName?.surname||'',given=parsedName?.given||'',middle=parsedName?.middle||'';
  const selected=$('job').value,job=selected==='Другое'?$('customJob').value.trim():selected;
  const editingId=$('editingId').value;
- if(!parsedName||!surname||!given||!job||!$('dept').value.trim()){alert('Введите фамилию и инициалы в формате: ТАЛАНТБЕКОВ А.Т., а также отдел и должность.');return}if(!selectedPassportFiles.length&&!editingId){alert('Прикрепите хотя бы один скан паспорта или ID-карты.');return}
+ if(!parsedName||!surname||!given||!job||!$('dept').value.trim()||!$('department').value.trim()){alert('Введите фамилию и инициалы в формате: ТАЛАНТБЕКОВ А.Т., а также организацию, отдел и должность.');return}if(!selectedPassportFiles.length&&!editingId){alert('Прикрепите хотя бы один скан паспорта или ID-карты.');return}
  const uploads=[...selectedPassportFiles,...Array.from($('photo').files||[])];
  const totalUploadBytes=uploads.reduce((sum,file)=>sum+file.size,0);
  if(totalUploadBytes>3.2*1024*1024){alert('Суммарный размер фото и паспортных файлов должен быть не более 3,2 МБ. Уменьшите размер сканов и попробуйте снова.');return}
  if(uploads.some(file=>file.size>3*1024*1024)){alert('Каждый файл должен быть не больше 3 МБ.');return}
  const fd=new FormData();
- fd.append('surname',surname);fd.append('given',given);fd.append('middle',middle);for(const [key,id] of Object.entries({dept:'dept',num:'num',date:'date'}))fd.append(key,$(id).value.trim());
+ fd.append('surname',surname);fd.append('given',given);fd.append('middle',middle);for(const [key,id] of Object.entries({dept:'dept',department:'department',num:'num',date:'date'}))fd.append(key,$(id).value.trim());
  fd.append('job',job);
  if($('photo').files[0])fd.append('photoFile',$('photo').files[0]);
  selectedPassportFiles.forEach(f=>fd.append('passportFiles',f));
