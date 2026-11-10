@@ -120,11 +120,19 @@ function renderApprovals(){
   html+=pending.map(x=>{
    const docs=(x.passportFiles||[]).map((f,i)=>`<a href="/api/employees/${encodeURIComponent(x.id)}/documents/${encodeURIComponent(f.id)}" target="_blank" rel="noopener">Документ ${i+1}: ${esc(f.name)}</a>`).join(' · ');
    const passportInfo=[x.docNo?`Документ № ${x.docNo}`:'',x.birthDate?`Дата рождения: ${x.birthDate}`:'',x.expiryDate?`Действует до: ${x.expiryDate}`:''].filter(Boolean).join(' · ');
-   return `<div class="approval-row"><div class="approval-main"><strong>${esc(displayName(x))}</strong><div class="approval-meta">Отдел: ${esc(x.department||'—')} · Должность: ${esc(x.job)} · Пропуск № ${esc(x.num)}<br>${passportInfo?esc(passportInfo)+'<br>':''}Добавил: ${esc(x.createdByName)} · ${esc(new Date(x.createdAt).toLocaleString('ru-RU'))}<br>${docs||'Паспортные документы не прикреплены'}</div><div class="approval-details"><div><label>Организация подтверждающей стороны *</label><input type="text" data-approval-org="${esc(x.id)}" maxlength="160" placeholder="Название организации" required></div><div><label>Должность подтверждающей стороны *</label><input type="text" data-approval-position="${esc(x.id)}" maxlength="120" placeholder="Ваша должность" required></div><div class="required-note">Оба поля обязательны для подтверждения пропуска.</div></div></div><div class="approval-buttons"><button class="green" data-approve="${esc(x.id)}">Подтвердить</button><button class="danger" data-reject="${esc(x.id)}">Вернуть</button></div></div>`;
+   return `<div class="approval-row"><div class="approval-main"><strong>${esc(displayName(x))}</strong><div class="approval-meta">Отдел: ${esc(x.department||'—')} · Должность: ${esc(x.job)} · Пропуск № ${esc(x.num)}<br>${passportInfo?esc(passportInfo)+'<br>':''}Добавил: ${esc(x.createdByName)} · ${esc(new Date(x.createdAt).toLocaleString('ru-RU'))}<br>${docs||'Паспортные документы не прикреплены'}</div><div class="approval-details"><div><label>Организация подтверждающей стороны *</label><input type="text" data-approval-org="${esc(x.id)}" maxlength="160" placeholder="Название организации" required></div><div><label>Должность подтверждающей стороны *</label><input type="text" data-approval-position="${esc(x.id)}" maxlength="120" placeholder="Ваша должность" required></div><div class="required-note">Оба поля обязательны для подтверждения пропуска.</div></div></div><div class="approval-buttons"><button class="green" data-approve="${esc(x.id)}">Подтвердить</button><button class="secondary" data-review-edit="${esc(x.id)}">Редактировать</button><button class="danger" data-reject="${esc(x.id)}">Отклонить</button><button class="danger" data-review-delete="${esc(x.id)}">Удалить</button></div></div>`;
   }).join('');
  } else html+='<div class="empty">Нет чужих записей, ожидающих подтверждения.</div>';
  if(own.length)html+=`<p class="own-pending">Ваших записей ожидает подтверждения другим сотрудником: ${own.length}. На этом компьютере под вашим логином подтвердить их нельзя.</p>`;
  host.innerHTML=html;
+ host.querySelectorAll('[data-review-edit]').forEach(btn=>btn.addEventListener('click',()=>beginApprovalEdit(btn.dataset.reviewEdit)));
+ host.querySelectorAll('[data-review-delete]').forEach(btn=>btn.addEventListener('click',async()=>{
+  const item=entries.find(x=>String(x.id)===String(btn.dataset.reviewDelete));
+  if(!item||!confirm(`Удалить запись ${displayName(item)} и прикреплённые документы?`))return;
+  btn.disabled=true;
+  try{await api('/api/employees/'+encodeURIComponent(item.id),{method:'DELETE'});await loadEmployees();alert('Запись удалена.')}
+  catch(e){alert(e.message);btn.disabled=false}
+ }));
  host.querySelectorAll('[data-approve]').forEach(btn=>btn.addEventListener('click',async()=>{
   const item=entries.find(x=>x.id===btn.dataset.approve);
   const row=btn.closest('.approval-row');
@@ -190,6 +198,20 @@ function beginEdit(id){
  const options=Array.from($('job').options).map(o=>o.value);if(options.includes(x.job)){$('job').value=x.job;$('customJobWrap').hidden=true}else{$('job').value='Другое';$('customJobWrap').hidden=false;$('customJob').value=x.job||''}
  $('photo').value='';$('passport').value='';selectedPassportFiles=[];$('formTitle').textContent='Исправление возвращённой записи';$('addBtn').textContent='Сохранить и отправить повторно';
  $('passportStatus').textContent=`Сейчас прикреплено документов: ${(x.passportFiles||[]).length}. Не выбирайте новые файлы, чтобы оставить старые; выберите новые, чтобы заменить комплект.`;
+ $('formTitle').scrollIntoView({behavior:'smooth',block:'start'});
+}
+function beginApprovalEdit(id){
+ const x=entries.find(item=>String(item.id)===String(id));
+ if(!x||x.approvalStatus!=='pending')return;
+ $('editingId').value=x.id;$('fioFull').value=displayName(x);
+ $('department').value=x.department||x.dept||'';$('num').value=x.num||'';$('date').value=x.date||'';
+ const options=Array.from($('job').options).map(o=>o.value);
+ if(options.includes(x.job)){$('job').value=x.job;$('customJobWrap').hidden=true}
+ else{$('job').value='Другое';$('customJobWrap').hidden=false;$('customJob').value=x.job||''}
+ $('photo').value='';$('passport').value='';selectedPassportFiles=[];
+ $('formTitle').textContent='Редактирование записи перед подтверждением';
+ $('addBtn').textContent='Сохранить изменения';
+ $('passportStatus').textContent=`Прикреплено документов: ${(x.passportFiles||[]).length}. Не выбирайте новые файлы, чтобы оставить старые; выберите новые, чтобы заменить комплект.`;
  $('formTitle').scrollIntoView({behavior:'smooth',block:'start'});
 }
 $('passport').addEventListener('change',e=>{selectedPassportFiles=Array.from(e.target.files||[]);$('passportStatus').textContent=selectedPassportFiles.length?`Выбрано новых документов: ${selectedPassportFiles.length}. При сохранении они заменят прежний комплект.`:($('editingId').value?'Прежние документы останутся прикреплёнными.':'Паспорт не выбран.')});
