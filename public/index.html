@@ -41,11 +41,11 @@ button{border:0;border-radius:7px;padding:10px 13px;background:var(--blue);color
 <div class="field"><label for="passport">Фото / скан паспорта или ID-карты</label><input id="passport" type="file" accept="image/jpeg,image/png,image/webp,application/pdf" multiple></div>
 <p class="hint" id="passportStatus">Прикрепите до 5 сканов паспорта или ID-карты. Для стабильной загрузки через Netlify суммарный размер фото и документов — не более 3,2 МБ. ФИО вводится вручную.</p>
 <div class="field"><label for="fioFull">ФИО</label><input id="fioFull" placeholder="Введите фамилию, имя и отчество" required></div>
-<p class="hint">Введите ФИО в свободной форме.</p>
+<p class="hint">Введите ФИО полностью в свободной форме.</p>
 
 
 
-<div class="field"><label for="department">Организация</label><input id="department" placeholder="Введите название организации" required></div>
+<div class="field"><label for="organization">Организация</label><input id="organization" placeholder="Введите название организации" required></div>
 <div class="field"><label for="num">№ пропуска</label><input id="num" placeholder="Заполнится автоматически"></div>
 <div class="field"><label for="date">Дата выдачи</label><input id="date" type="date"></div>
 <div class="field"><label for="job">Должность этого сотрудника</label><select id="job" required>
@@ -186,11 +186,11 @@ function render(){
 $('staffSearch').addEventListener('input',render);
 function setStatus(msg,isError=false){$('dbStatus').textContent=msg;$('dbStatus').style.color=isError?'#b42318':'#174a7a';$('dbStatus').style.background=isError?'#fff0ef':'#eef6ff'}
 async function loadEmployees(){const data=await api('/api/employees');entries=data.employees||[];render();const ok=entries.filter(x=>x.approvalStatus==='approved').length;const pending=entries.filter(x=>x.approvalStatus==='pending').length;setStatus(`Общая база подключена. Всего: ${entries.length}; подтверждено: ${ok}; ожидает проверки: ${pending}. Паспортные файлы защищены шифрованием на сервере.`)}
-function clearForm(){['fioFull','department','num','customJob'].forEach(id=>$(id).value='');$('job').value='';$('customJobWrap').hidden=true;$('photo').value='';$('passport').value='';selectedPassportFiles=[];$('editingId').value='';$('formTitle').textContent='Новый сотрудник';$('addBtn').textContent='Добавить пропуск';$('passportStatus').textContent='Для новой записи обязательно прикрепите паспорт. Суммарный размер фото и сканов — до 3,2 МБ. При исправлении старые документы сохраняются, если не загружать новые.';$('date').value=new Date().toISOString().slice(0,10)}
+function clearForm(){['fioFull','organization','num','customJob'].forEach(id=>$(id).value='');$('job').value='';$('customJobWrap').hidden=true;$('photo').value='';$('passport').value='';selectedPassportFiles=[];$('editingId').value='';$('formTitle').textContent='Новый сотрудник';$('addBtn').textContent='Добавить пропуск';$('passportStatus').textContent='Для новой записи обязательно прикрепите паспорт. Суммарный размер фото и сканов — до 3,2 МБ. При исправлении старые документы сохраняются, если не загружать новые.';$('date').value=new Date().toISOString().slice(0,10)}
 function beginEdit(id){
  const x=entries.find(item=>item.id===id);if(!x||x.approvalStatus!=='rejected'||Number(x.createdBy)!==Number(currentUser.id))return;
  $('editingId').value=x.id;$('fioFull').value=displayName(x);
- $('department').value=x.department||x.dept||'';$('num').value=x.num||'';$('date').value=x.date||'';
+ $('organization').value=x.department||x.dept||'';$('num').value=x.num||'';$('date').value=x.date||'';
  const options=Array.from($('job').options).map(o=>o.value);if(options.includes(x.job)){$('job').value=x.job;$('customJobWrap').hidden=true}else{$('job').value='Другое';$('customJobWrap').hidden=false;$('customJob').value=x.job||''}
  $('photo').value='';$('passport').value='';selectedPassportFiles=[];$('formTitle').textContent='Исправление возвращённой записи';$('addBtn').textContent='Сохранить и отправить повторно';
  $('passportStatus').textContent=`Сейчас прикреплено документов: ${(x.passportFiles||[]).length}. Не выбирайте новые файлы, чтобы оставить старые; выберите новые, чтобы заменить комплект.`;
@@ -200,7 +200,7 @@ function beginApprovalEdit(id){
  const x=entries.find(item=>String(item.id)===String(id));
  if(!x||x.approvalStatus!=='pending')return;
  $('editingId').value=x.id;$('fioFull').value=displayName(x);
- $('department').value=x.department||x.dept||'';$('num').value=x.num||'';$('date').value=x.date||'';
+ $('organization').value=x.department||x.dept||'';$('num').value=x.num||'';$('date').value=x.date||'';
  const options=Array.from($('job').options).map(o=>o.value);
  if(options.includes(x.job)){$('job').value=x.job;$('customJobWrap').hidden=true}
  else{$('job').value='Другое';$('customJobWrap').hidden=false;$('customJob').value=x.job||''}
@@ -217,13 +217,13 @@ $('addBtn').addEventListener('click',async()=>{
  const fullName=$('fioFull').value.trim();const surname=fullName,given='',middle='';
  const selected=$('job').value,job=selected==='Другое'?$('customJob').value.trim():selected;
  const editingId=$('editingId').value;
- if(!fullName||!job||!$('department').value.trim()){alert('Введите ФИО в свободной форме, а также организацию и должность.');return}if(!selectedPassportFiles.length&&!editingId){alert('Прикрепите хотя бы один скан паспорта или ID-карты.');return}
+ if(!fullName||!job||!$('organization').value.trim()){alert('Введите ФИО в свободной форме, а также организацию и должность.');return}if(!selectedPassportFiles.length&&!editingId){alert('Прикрепите хотя бы один скан паспорта или ID-карты.');return}
  const uploads=[...selectedPassportFiles,...Array.from($('photo').files||[])];
  const totalUploadBytes=uploads.reduce((sum,file)=>sum+file.size,0);
  if(totalUploadBytes>3.2*1024*1024){alert('Суммарный размер фото и паспортных файлов должен быть не более 3,2 МБ. Уменьшите размер сканов и попробуйте снова.');return}
  if(uploads.some(file=>file.size>3*1024*1024)){alert('Каждый файл должен быть не больше 3 МБ.');return}
  const fd=new FormData();
- fd.append('surname',surname);fd.append('given',given);fd.append('middle',middle);for(const [key,id] of Object.entries({dept:'department',department:'department',num:'num',date:'date'}))fd.append(key,$(id).value.trim());
+ fd.append('surname',surname);fd.append('given',given);fd.append('middle',middle);for(const [key,id] of Object.entries({dept:'organization',department:'organization',num:'num',date:'date'}))fd.append(key,$(id).value.trim());
  fd.append('job',job);
  if($('photo').files[0])fd.append('photoFile',$('photo').files[0]);
  selectedPassportFiles.forEach(f=>fd.append('passportFiles',f));
