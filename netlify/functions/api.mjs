@@ -249,6 +249,8 @@ function decodeEmployee(row, docs = []) {
   const data = decryptJson(row.data_enc);
   return {
     ...data,
+    // index.html использует поле department; старые записи продолжают храниться в dept.
+    department: data.department || data.dept || '',
     id: row.id,
     photo: row.photo_key ? `/api/employees/${encodeURIComponent(row.id)}/photo` : '',
     passportFiles: docs,
@@ -555,8 +557,11 @@ async function createEmployeeFromForm(uploads, form, user) {
   if (!form) return json({ error: 'Не удалось прочитать поля формы. Повторите отправку.' }, 400);
   const field = name => String(form.get(name) || '').trim();
   const surname = field('surname'), given = field('given'), middle = field('middle');
-  const job = field('job'), dept = field('dept');
-  if (!surname || !given || !job || !dept) return json({ error: 'Заполните фамилию, имя, отдел и должность.' }, 400);
+  const job = field('job');
+  // Форма отправляет ФИО целиком и поле «Отдел».
+  // Значение сохраняется в прежнем ключе dept для совместимости с уже сохранёнными записями.
+  const dept = field('department') || field('dept');
+  if (!surname || !job || !dept) return json({ error: 'Заполните ФИО, отдел и должность.' }, 400);
   if (!uploads.passports.length) return json({ error: 'Прикрепите хотя бы один скан паспорта или ID-карты.' }, 400);
   const id = crypto.randomUUID();
   const files = await addUploadedFiles(id, uploads);
@@ -595,8 +600,11 @@ async function createEmployeeFromForm(uploads, form, user) {
 async function updateEmployee(id, form, uploads, user) {
   const field = name => String(form.get(name) || '').trim();
   const surname = field('surname'), given = field('given'), middle = field('middle');
-  const job = field('job'), dept = field('dept');
-  if (!surname || !given || !job || !dept) return json({ error: 'Заполните фамилию, имя, должность.' }, 400);
+  const job = field('job');
+  // Форма отправляет ФИО целиком и поле «Отдел».
+  // Значение сохраняется в прежнем ключе dept для совместимости с уже сохранёнными записями.
+  const dept = field('department') || field('dept');
+  if (!surname || !job || !dept) return json({ error: 'Заполните ФИО, отдел и должность.' }, 400);
   const existingResult = await (await database()).query('SELECT * FROM employees WHERE id=$1', [id]);
   const existing = existingResult.rows[0];
   if (!existing) return json({ error: 'Сотрудник не найден.' }, 404);
