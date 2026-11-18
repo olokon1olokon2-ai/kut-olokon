@@ -596,7 +596,7 @@ async function updateEmployee(id, form, uploads, user) {
   const field = name => String(form.get(name) || '').trim();
   const surname = field('surname'), given = field('given'), middle = field('middle');
   const job = field('job'), dept = field('dept');
-  if (!surname || !given || !job || !dept) return json({ error: 'Заполните фамилию, имя, отдел и должность.' }, 400);
+  if (!surname || !given || !job || !dept) return json({ error: 'Заполните фамилию, имя, должность.' }, 400);
   const existingResult = await (await database()).query('SELECT * FROM employees WHERE id=$1', [id]);
   const existing = existingResult.rows[0];
   if (!existing) return json({ error: 'Сотрудник не найден.' }, 404);
