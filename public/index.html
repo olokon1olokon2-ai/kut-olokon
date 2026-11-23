@@ -76,7 +76,7 @@ button{border:0;border-radius:7px;padding:10px 13px;background:var(--blue);color
 <div class="staff-search"><label for="staffSearch">Поиск сотрудников</label><input id="staffSearch" type="search" placeholder="№ пропуска, ФИО, организация или должность" autocomplete="off"><small>Поиск выполняется по всей общей базе сотрудников.</small></div>
 <div class="stafflist"><strong>Добавленные сотрудники: <span id="staffCount">0</span></strong><div id="staffList"></div></div>
 </section>
-<section class="panel"><div class="previewhead"><div><h2>Предпросмотр пропусков</h2><div class="small" id="count">Добавлено: 0 · видно 10 мест</div></div><div class="actions screen-only"><button class="green" id="printBtn">Печать А4</button><button class="danger" id="resetBtn" style="display:none">Удалить все</button></div></div>
+<section class="panel"><div class="previewhead"><div><h2>Предпросмотр пропусков</h2><div class="small" id="count">Добавлено: 0 · видно 10 мест</div></div><div class="actions screen-only"><button class="green" id="printBtn">Печать А4</button><button type="button" class="secondary" id="generalPdfBtn">Общий отчёт PDF</button><button class="danger" id="resetBtn" style="display:none">Удалить все</button></div></div>
 <div id="cards" class="cards"><div class="empty">Загружаю записи общей базы...</div></div></section>
 </div></div>
 <script>
@@ -112,6 +112,40 @@ function pdfReport(x){
  const rows=[['ФИО',displayName(x)],['Организация',x.department||'—'],['Должность',x.job||'—'],['Номер пропуска',x.num||'—'],['Дата выдачи',niceDate(x.date)||'—'],['Статус',x.approvalStatus==='approved'?'Подтверждён':'—'],['Отчёт сформирован',reportDate],['Ответственный',x.approvedByName||'—']];
  const page=`<!doctype html><html lang="ru"><head><meta charset="utf-8"><title>Отчёт пропуска ${esc(x.num||'')}</title><style>body{font-family:Arial,sans-serif;color:#17243a;margin:0;padding:18mm 15mm}header{text-align:center;border-bottom:3px solid #1c3e78;padding-bottom:12px;margin-bottom:20px}header h1{margin:0;font-size:22px;color:#173b75}header p{margin:6px 0 0;font-size:12px;color:#56677e}.report-title{text-align:center;font-size:18px;font-weight:bold;margin:16px 0 22px}.photo{width:38mm;height:48mm;object-fit:cover;border:1px solid #c6d0de;border-radius:5px}.top{display:flex;gap:18px;align-items:flex-start;margin-bottom:20px}.badge{width:90mm;max-width:100%;border:1px solid #c5cfdd;border-radius:8px;overflow:hidden}.badge img{width:100%;display:block}.info{flex:1}.info table{width:100%;border-collapse:collapse}.info td{padding:9px 8px;border-bottom:1px solid #dbe2ec;vertical-align:top;font-size:13px}.info td:first-child{width:40%;font-weight:bold;color:#3b4d65}.sign{margin-top:38px;display:flex;justify-content:space-between;font-size:12px}.foot{margin-top:28px;font-size:10px;color:#758196;text-align:center}@media print{body{padding:12mm}button{display:none}}</style></head><body><header><h1>ЖК «ОЛОКОН» · КУТ</h1><p>Строительная компания · Служебный отчёт</p></header><div class="report-title">ОТЧЁТ ПО ПРОПУСКУ</div><div class="top">${photo}<div class="info"><table>${rows.map(([k,v])=>`<tr><td>${esc(k)}</td><td>${esc(v)}</td></tr>`).join('')}</table></div></div><h3>Изображение пропуска</h3><div class="badge"><img src="${ART}" alt="Макет пропуска"></div><div class="sign"><span>Ответственный: __________________</span><span>Подпись: __________________</span></div><div class="foot">Отчёт сформирован в электронном приложении КУТ.</div><script>window.onload=()=>setTimeout(()=>window.print(),300);<\/script></body></html>`;
  const win=window.open('','_blank');if(!win){alert('Разрешите всплывающие окна для формирования PDF.');return;}win.document.open();win.document.write(page);win.document.close();
+}
+
+function generalPdfReport(){
+ const approved=entries.filter(x=>x.approvalStatus==='approved').slice().sort((a,b)=>{
+  const org=String(a.department||'').localeCompare(String(b.department||''),'ru');
+  return org||displayName(a).localeCompare(displayName(b),'ru');
+ });
+ if(!approved.length){alert('Нет подтверждённых пропусков для общего отчёта.');return}
+ const reportDate=new Date().toLocaleString('ru-RU');
+ const body=approved.map((x,i)=>{
+  const photo=x.photo?`<img class="thumb" src="${esc(x.photo)}" alt="">`:'—';
+  return `<tr><td>${i+1}</td><td>${photo}</td><td>${esc(displayName(x))}</td><td>${esc(x.department||'—')}</td><td>${esc(x.job||'—')}</td><td>${esc(x.num||'—')}</td><td>${esc(niceDate(x.date)||'—')}</td><td>${esc(x.approvedByName||'—')}</td></tr>`;
+ }).join('');
+ const page=`<!doctype html><html lang="ru"><head><meta charset="utf-8"><title>Общий отчёт КУТ</title><style>
+ @page{size:A4 landscape;margin:9mm}*{box-sizing:border-box}body{font-family:Arial,sans-serif;color:#17243a;margin:0}
+ header{text-align:center;border-bottom:3px solid #1c3e78;padding-bottom:8px;margin-bottom:12px}
+ h1{font-size:19px;color:#173b75;margin:0 0 5px}header p{font-size:10px;color:#56677e;margin:0}
+ .summary{display:flex;justify-content:space-between;font-size:11px;margin:10px 0}
+ table{width:100%;border-collapse:collapse;table-layout:fixed;font-size:9px}
+ th,td{border:1px solid #b9c7d8;padding:5px 4px;text-align:left;vertical-align:middle;overflow-wrap:anywhere}
+ th{background:#eaf1f9;color:#173b75;font-weight:bold}
+ td:nth-child(1){width:4%;text-align:center}td:nth-child(2){width:7%;text-align:center}td:nth-child(3){width:19%}td:nth-child(4){width:17%}td:nth-child(5){width:17%}td:nth-child(6){width:9%}td:nth-child(7){width:10%}td:nth-child(8){width:17%}
+ .thumb{width:14mm;height:17mm;object-fit:cover;display:block;margin:auto}
+ .sign{display:flex;justify-content:space-between;margin-top:20px;font-size:10px}
+ .foot{text-align:center;color:#758196;font-size:8px;margin-top:12px}
+ </style></head><body><header><h1>ЖК «ОЛОКОН» · КУТ</h1><p>Общий реестр подтверждённых пропусков</p></header>
+ <div class="summary"><span>Всего подтверждённых пропусков: <b>${approved.length}</b></span><span>Дата формирования: ${esc(reportDate)}</span></div>
+ <table><thead><tr><th>№</th><th>Фото</th><th>ФИО</th><th>Организация</th><th>Должность</th><th>№ пропуска</th><th>Дата выдачи</th><th>Подтвердил</th></tr></thead><tbody>${body}</tbody></table>
+ <div class="sign"><span>Ответственный: __________________________</span><span>Подпись: __________________________</span></div>
+ <div class="foot">Отчёт сформирован в электронном приложении КУТ.</div>
+ <script>window.onload=()=>setTimeout(()=>window.print(),500);<\/script></body></html>`;
+ const win=window.open('','_blank');
+ if(!win){alert('Разрешите всплывающие окна для формирования PDF.');return}
+ win.document.open();win.document.write(page);win.document.close();
 }
 function statusLabel(x){
  if(x.approvalStatus==='approved')return isPrinted(x)?'<span class="state approved">Подтверждён · уже распечатан</span>':'<span class="state approved">Подтверждён · не распечатан</span>';
@@ -239,6 +273,7 @@ $('addBtn').addEventListener('click',async()=>{
  $('addBtn').disabled=true;$('addBtn').textContent='Сохраняю в общей базе...';
  try{if(editingId){await api('/api/employees/'+encodeURIComponent(editingId),{method:'PUT',body:fd})}else{await api('/api/employees',{method:'POST',body:fd})}clearForm();await loadEmployees();setStatus(editingId?'Исправления сохранены. Запись снова ожидает подтверждения другого сотрудника.':'Запись и паспортные документы сохранены. Пропуск ожидает подтверждения другого сотрудника и пока не попадёт в печать.',false)}catch(e){alert(e.message);setStatus(e.message,true)}finally{$('addBtn').disabled=false;if(!$('editingId').value)$('addBtn').textContent='Добавить пропуск'}
 });
+$('generalPdfBtn').addEventListener('click',generalPdfReport);
 $('printBtn').addEventListener('click',()=>{
  const printed=getPrintedIds();
  const printable=entries.filter(x=>x.approvalStatus==='approved'&&!printed.has(String(x.id)));
