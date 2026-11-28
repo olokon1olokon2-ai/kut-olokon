@@ -436,9 +436,18 @@ async function exportFullDatabase() {
   const exportBucket = store();
   const exportKey = encryptionKey();
   const readExportBlob = async key => {
-    const item = await exportBucket.get(key);
-    if (!item) return null;
-    return decryptBuffer(Buffer.from(await item.arrayBuffer()), exportKey);
+    let lastError;
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      try {
+        const item = await exportBucket.get(key);
+        if (!item) return null;
+        return decryptBuffer(Buffer.from(await item.arrayBuffer()), exportKey);
+      } catch (error) {
+        lastError = error;
+        if (attempt < 3) await new Promise(resolve => setTimeout(resolve, attempt * 150));
+      }
+    }
+    throw lastError || new Error('Не удалось прочитать файл из хранилища.');
   };
   const employeeResult = await client.query(`
     SELECT e.*, creator.username AS created_by_username,
