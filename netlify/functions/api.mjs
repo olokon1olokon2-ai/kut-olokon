@@ -534,15 +534,20 @@ async function exportFullDatabase() {
     };
   }
 
+  const zipIterator = makeZipStream(exportFiles());
   const stream = new ReadableStream({
-    async start(controller) {
+    async pull(controller) {
       try {
-        for await (const chunk of makeZipStream(exportFiles())) controller.enqueue(chunk);
-        controller.close();
+        const next = await zipIterator.next();
+        if (next.done) controller.close();
+        else controller.enqueue(next.value);
       } catch (error) {
         console.error('KUT streaming ZIP export failed:', error?.message || error);
         controller.error(error);
       }
+    },
+    async cancel() {
+      if (zipIterator.return) await zipIterator.return();
     },
   });
   return new Response(stream, {
