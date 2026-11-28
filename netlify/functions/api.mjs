@@ -342,11 +342,19 @@ function attachmentName(name) {
   return `attachment; filename="${safeAscii}"; filename*=UTF-8''${encodeURIComponent(String(name || 'document'))}`;
 }
 
+const CRC32_TABLE = (() => {
+  const table = new Uint32Array(256);
+  for (let n = 0; n < 256; n++) {
+    let value = n;
+    for (let bit = 0; bit < 8; bit++) value = (value >>> 1) ^ (value & 1 ? 0xedb88320 : 0);
+    table[n] = value >>> 0;
+  }
+  return table;
+})();
 function crc32(buffer) {
   let crc = 0xffffffff;
   for (let i = 0; i < buffer.length; i++) {
-    crc ^= buffer[i];
-    for (let j = 0; j < 8; j++) crc = (crc >>> 1) ^ (crc & 1 ? 0xedb88320 : 0);
+    crc = CRC32_TABLE[(crc ^ buffer[i]) & 0xff] ^ (crc >>> 8);
   }
   return (crc ^ 0xffffffff) >>> 0;
 }
@@ -612,9 +620,26 @@ async function exportFullDatabase() {
   const stream = new ReadableStream({
     async pull(controller) {
       try {
-        const next = await zipIterator.next();
-        if (next.done) controller.close();
-        else controller.enqueue(next.value);
+        // Batch the ZIP writer's many small headers/names/data chunks into
+        // larger response chunks. This reduces stream scheduling overhead and
+        // helps prevent interrupted downloads before the ZIP directory/EOCD.
+        const chunks = [];
+        let total = 0;
+        const targetChunkSize = 256 * 1024;
+        while (total < targetChunkSize) {
+          const next = await zipIterator.next();
+          if (next.done) {
+            if (chunks.length) controller.enqueue(Buffer.concat(chunks, total));
+            controller.close();
+            return;
+          }
+          const chunk = Buffer.isBuffer(next.value) ? next.value : Buffer.from(next.value);
+          if (chunk.length) {
+            chunks.push(chunk);
+            total += chunk.length;
+          }
+        }
+        controller.enqueue(Buffer.concat(chunks, total));
       } catch (error) {
         console.error('KUT streaming ZIP export failed:', error?.message || error);
         controller.error(error);
