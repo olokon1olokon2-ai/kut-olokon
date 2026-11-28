@@ -341,6 +341,169 @@ function attachmentName(name) {
   const safeAscii = String(name || 'document').replace(/[^\x20-\x7E]/g, '_').replace(/["\\;]/g, '_').slice(0, 100) || 'document';
   return `attachment; filename="${safeAscii}"; filename*=UTF-8''${encodeURIComponent(String(name || 'document'))}`;
 }
+
+function crc32(buffer) {
+  let crc = 0xffffffff;
+  for (let i = 0; i < buffer.length; i++) {
+    crc ^= buffer[i];
+    for (let j = 0; j < 8; j++) crc = (crc >>> 1) ^ (crc & 1 ? 0xedb88320 : 0);
+  }
+  return (crc ^ 0xffffffff) >>> 0;
+}
+function zipDate(date = new Date()) {
+  const year = Math.max(1980, date.getFullYear());
+  return {
+    time: (date.getHours() << 11) | (date.getMinutes() << 5) | Math.floor(date.getSeconds() / 2),
+    date: ((year - 1980) << 9) | ((date.getMonth() + 1) << 5) | date.getDate(),
+  };
+}
+function makeZip(files) {
+  const local = [], central = [];
+  let offset = 0;
+  const stamp = zipDate();
+  for (const file of files) {
+    const name = Buffer.from(file.name, 'utf8');
+    const data = Buffer.isBuffer(file.data) ? file.data : Buffer.from(file.data);
+    const crc = crc32(data);
+    const header = Buffer.alloc(30);
+    header.writeUInt32LE(0x04034b50, 0);
+    header.writeUInt16LE(20, 4);
+    header.writeUInt16LE(0x0800, 6);
+    header.writeUInt16LE(0, 8);
+    header.writeUInt16LE(stamp.time, 10);
+    header.writeUInt16LE(stamp.date, 12);
+    header.writeUInt32LE(crc, 14);
+    header.writeUInt32LE(data.length, 18);
+    header.writeUInt32LE(data.length, 22);
+    header.writeUInt16LE(name.length, 26);
+    header.writeUInt16LE(0, 28);
+    local.push(header, name, data);
+    const entry = Buffer.alloc(46);
+    entry.writeUInt32LE(0x02014b50, 0);
+    entry.writeUInt16LE(20, 4);
+    entry.writeUInt16LE(20, 6);
+    entry.writeUInt16LE(0x0800, 8);
+    entry.writeUInt16LE(0, 10);
+    entry.writeUInt16LE(stamp.time, 12);
+    entry.writeUInt16LE(stamp.date, 14);
+    entry.writeUInt32LE(crc, 16);
+    entry.writeUInt32LE(data.length, 20);
+    entry.writeUInt32LE(data.length, 24);
+    entry.writeUInt16LE(name.length, 28);
+    entry.writeUInt16LE(0, 30);
+    entry.writeUInt16LE(0, 32);
+    entry.writeUInt16LE(0, 34);
+    entry.writeUInt16LE(0, 36);
+    entry.writeUInt32LE(0, 38);
+    entry.writeUInt32LE(offset, 42);
+    central.push(entry, name);
+    offset += header.length + name.length + data.length;
+  }
+  const centralSize = central.reduce((n, part) => n + part.length, 0);
+  const end = Buffer.alloc(22);
+  end.writeUInt32LE(0x06054b50, 0);
+  end.writeUInt16LE(0, 4);
+  end.writeUInt16LE(0, 6);
+  end.writeUInt16LE(files.length, 8);
+  end.writeUInt16LE(files.length, 10);
+  end.writeUInt32LE(centralSize, 12);
+  end.writeUInt32LE(offset, 16);
+  end.writeUInt16LE(0, 20);
+  return Buffer.concat([...local, ...central, end]);
+}
+async function exportFullDatabase() {
+  const client = await database();
+  const employeeResult = await client.query(`
+    SELECT e.*, creator.username AS created_by_username,
+      approver.username AS approved_by_username, rejecter.username AS rejected_by_username
+    FROM employees e
+    LEFT JOIN users creator ON creator.id=e.created_by
+    LEFT JOIN users approver ON approver.id=e.approved_by
+    LEFT JOIN users rejecter ON rejecter.id=e.rejected_by
+    ORDER BY e.created_at, e.id
+  `);
+  const docsResult = await client.query(`
+    SELECT id, employee_id, storage_key, original_name, mime_type, byte_size, created_at
+    FROM documents ORDER BY created_at, id
+  `);
+  const docsByEmployee = new Map();
+  for (const doc of docsResult.rows) {
+    const key = String(doc.employee_id);
+    if (!docsByEmployee.has(key)) docsByEmployee.set(key, []);
+    docsByEmployee.get(key).push(doc);
+  }
+  const files = [];
+  const index = {
+    exportName: 'KUT_full_database.zip',
+    exportedAt: new Date().toISOString(),
+    totalEmployees: employeeResult.rows.length,
+    totalDocuments: docsResult.rows.length,
+    employees: [],
+  };
+  for (const row of employeeResult.rows) {
+    const data = decryptJson(row.data_enc);
+    const display = data.surname || data.fio || data.fullName || 'Сотрудник';
+    const folder = normalizeFileName(display).replace(/\s+/g, '_').slice(0, 70) + '_' + String(row.id).replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 12);
+    const employeeDocs = docsByEmployee.get(String(row.id)) || [];
+    const employeeMeta = {
+      ...data,
+      id: row.id,
+      createdAt: iso(row.created_at),
+      createdBy: String(row.created_by),
+      createdByName: row.created_by_username || '',
+      approvalStatus: row.approval_status || 'pending',
+      approvedBy: row.approved_by ? String(row.approved_by) : null,
+      approvedByName: row.approved_by_username || '',
+      approvedAt: iso(row.approved_at),
+      rejectedBy: row.rejected_by ? String(row.rejected_by) : null,
+      rejectedByName: row.rejected_by_username || '',
+      rejectedAt: iso(row.rejected_at),
+      rejectionReason: row.rejection_reason || '',
+      photoIncluded: !!row.photo_key,
+      passportFiles: employeeDocs.map(d => ({
+        id: d.id, name: d.original_name, mimeType: d.mime_type,
+        size: Number(d.byte_size), createdAt: iso(d.created_at),
+      })),
+    };
+    files.push({ name: `${folder}/employee_data.json`, data: Buffer.from(JSON.stringify(employeeMeta, null, 2), 'utf8') });
+    const indexEntry = { id: String(row.id), name: display, organization: data.dept || data.department || '', job: data.job || '', folder, photo: false, documents: [] };
+    if (row.photo_key) {
+      const photo = await readEncryptedBlob(row.photo_key);
+      if (photo) {
+        const ext = ({ 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' })[data.photoMime] || 'bin';
+        files.push({ name: `${folder}/photo.${ext}`, data: photo });
+        indexEntry.photo = true;
+      } else indexEntry.photoMissing = true;
+    }
+    for (let i = 0; i < employeeDocs.length; i++) {
+      const doc = employeeDocs[i];
+      const content = await readEncryptedBlob(doc.storage_key);
+      if (content) {
+        const original = normalizeFileName(doc.original_name || `document_${i + 1}`);
+        const fileName = `${String(i + 1).padStart(2, '0')}_${original}`;
+        files.push({ name: `${folder}/passport_documents/${fileName}`, data: content });
+        indexEntry.documents.push({ id: doc.id, file: `passport_documents/${fileName}`, name: doc.original_name, size: Number(doc.byte_size) });
+      } else {
+        indexEntry.documents.push({ id: doc.id, name: doc.original_name, missing: true });
+      }
+    }
+    files.push({ name: `${folder}/`, data: Buffer.alloc(0) });
+    index.employees.push(indexEntry);
+  }
+  files.unshift({ name: 'EXPORT_INDEX.json', data: Buffer.from(JSON.stringify(index, null, 2), 'utf8') });
+  const archive = makeZip(files);
+  return new Response(archive, {
+    status: 200,
+    headers: {
+      'Content-Type': 'application/zip',
+      'Content-Length': String(archive.length),
+      'Content-Disposition': 'attachment; filename="KUT_full_database.zip"; filename*=UTF-8\'\'KUT_full_database.zip',
+      'Cache-Control': 'private, no-store, max-age=0',
+      'X-Content-Type-Options': 'nosniff',
+    },
+  });
+}
+
 async function route(req, user, pathname) {
   const method = req.method.toUpperCase();
   const parts = pathname.split('/').filter(Boolean).map(part => decodeURIComponent(part));
@@ -413,6 +576,11 @@ async function route(req, user, pathname) {
 
   if (!user) return json({ error: 'Требуется вход в систему.' }, 401);
   if (routePath === '/me' && method === 'GET') return json({ user });
+
+  if (routePath === '/export/full-database' && method === 'GET') {
+    if (!requireAdmin(user)) return json({ error: 'Недостаточно прав.' }, 403);
+    return await exportFullDatabase();
+  }
 
   if (routePath === '/employees' && method === 'GET') {
     return json({ employees: await listEmployees(user), user });
