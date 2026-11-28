@@ -495,7 +495,7 @@ async function exportFullDatabase() {
         dataError = error?.message || 'Не удалось расшифровать данные сотрудника';
       }
       const display = data.surname || data.fio || data.fullName || ('Сотрудник_' + row.id);
-      const folder = normalizeFileName(display).replace(/\\s+/g, '_').slice(0, 70) + '_' + String(row.id).replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 12);
+      const folder = normalizeFileName(display).replace(/\s+/g, '_').slice(0, 70) + '_' + String(row.id).replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 12);
       const employeeMeta = {
         ...data,
         id: row.id,
