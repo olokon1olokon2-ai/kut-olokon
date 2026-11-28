@@ -436,9 +436,18 @@ async function exportFullDatabase() {
   const exportBucket = store();
   const exportKey = encryptionKey();
   const readExportBlob = async key => {
-    const item = await exportBucket.get(key);
-    if (!item) return null;
-    return decryptBuffer(Buffer.from(await item.arrayBuffer()), exportKey);
+    let lastError;
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      try {
+        const item = await exportBucket.get(key);
+        if (!item) return null;
+        return decryptBuffer(Buffer.from(await item.arrayBuffer()), exportKey);
+      } catch (error) {
+        lastError = error;
+        if (attempt < 3) await new Promise(resolve => setTimeout(resolve, attempt * 150));
+      }
+    }
+    throw lastError || new Error('Не удалось прочитать файл из хранилища.');
   };
   const employeeResult = await client.query(`
     SELECT e.*, creator.username AS created_by_username,
@@ -476,10 +485,17 @@ async function exportFullDatabase() {
 
   async function* exportFiles() {
     for (const row of employeeResult.rows) {
-      const data = decryptJson(row.data_enc);
-      const display = data.surname || data.fio || data.fullName || 'Сотрудник';
-      const folder = normalizeFileName(display).replace(/\s+/g, '_').slice(0, 70) + '_' + String(row.id).replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 12);
       const employeeDocs = docsByEmployee.get(String(row.id)) || [];
+      let data;
+      let dataError = '';
+      try {
+        data = decryptJson(row.data_enc);
+      } catch (error) {
+        data = {};
+        dataError = error?.message || 'Не удалось расшифровать данные сотрудника';
+      }
+      const display = data.surname || data.fio || data.fullName || ('Сотрудник_' + row.id);
+      const folder = normalizeFileName(display).replace(/\\s+/g, '_').slice(0, 70) + '_' + String(row.id).replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 12);
       const employeeMeta = {
         ...data,
         id: row.id,
@@ -500,12 +516,23 @@ async function exportFullDatabase() {
           size: Number(d.byte_size), createdAt: iso(d.created_at),
         })),
       };
+      if (dataError) employeeMeta.exportError = dataError;
+
       const indexEntry = {
         id: String(row.id), name: display,
         organization: data.dept || data.department || '',
         job: data.job || '', folder, photo: false, documents: [],
       };
-      const photo = row.photo_key ? await readExportBlob(row.photo_key) : null;
+      if (dataError) indexEntry.dataError = dataError;
+
+      let photo = null;
+      if (row.photo_key && !dataError) {
+        try {
+          photo = await readExportBlob(row.photo_key);
+        } catch (error) {
+          indexEntry.photoError = error?.message || 'Ошибка чтения фотографии';
+        }
+      }
       employeeMeta.photoIncluded = !!photo;
       if (row.photo_key && !photo) indexEntry.photoMissing = true;
       if (photo) indexEntry.photo = true;
@@ -522,17 +549,24 @@ async function exportFullDatabase() {
 
       for (let i = 0; i < employeeDocs.length; i++) {
         const doc = employeeDocs[i];
-        const content = await readExportBlob(doc.storage_key);
-        if (content) {
-          const original = normalizeFileName(doc.original_name || `document_${i + 1}`);
-          const fileName = `${String(i + 1).padStart(2, "0")}_${original}`;
-          yield { name: `${folder}/passport_documents/${fileName}`, data: content };
+        try {
+          const content = await readExportBlob(doc.storage_key);
+          if (content) {
+            const original = normalizeFileName(doc.original_name || `document_${i + 1}`);
+            const fileName = `${String(i + 1).padStart(2, '0')}_${original}`;
+            yield { name: `${folder}/passport_documents/${fileName}`, data: content };
+            indexEntry.documents.push({
+              id: doc.id, file: `passport_documents/${fileName}`,
+              name: doc.original_name, size: Number(doc.byte_size),
+            });
+          } else {
+            indexEntry.documents.push({ id: doc.id, name: doc.original_name, missing: true, error: 'Файл отсутствует в хранилище' });
+          }
+        } catch (error) {
           indexEntry.documents.push({
-            id: doc.id, file: `passport_documents/${fileName}`,
-            name: doc.original_name, size: Number(doc.byte_size),
+            id: doc.id, name: doc.original_name, missing: true,
+            error: error?.message || 'Ошибка чтения документа',
           });
-        } else {
-          indexEntry.documents.push({ id: doc.id, name: doc.original_name, missing: true });
         }
       }
       index.employees.push(indexEntry);
