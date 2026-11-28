@@ -70,9 +70,9 @@ function encryptBuffer(input) {
   const ciphertext = Buffer.concat([cipher.update(input), cipher.final()]);
   return Buffer.concat([iv, cipher.getAuthTag(), ciphertext]);
 }
-function decryptBuffer(input) {
+function decryptBuffer(input, key = encryptionKey()) {
   if (!Buffer.isBuffer(input) || input.length < 29) throw new Error('Зашифрованный файл повреждён.');
-  const decipher = crypto.createDecipheriv('aes-256-gcm', encryptionKey(), input.subarray(0, 12));
+  const decipher = crypto.createDecipheriv('aes-256-gcm', key, input.subarray(0, 12));
   decipher.setAuthTag(input.subarray(12, 28));
   return Buffer.concat([decipher.update(input.subarray(28)), decipher.final()]);
 }
@@ -431,6 +431,15 @@ async function* makeZipStream(files) {
 
 async function exportFullDatabase() {
   const client = await database();
+  // Capture request-scoped bindings before returning the streaming Response.
+  // Stream pulls may execute after the request handler's AsyncLocalStorage scope ends.
+  const exportBucket = store();
+  const exportKey = encryptionKey();
+  const readExportBlob = async key => {
+    const item = await exportBucket.get(key);
+    if (!item) return null;
+    return decryptBuffer(Buffer.from(await item.arrayBuffer()), exportKey);
+  };
   const employeeResult = await client.query(`
     SELECT e.*, creator.username AS created_by_username,
       approver.username AS approved_by_username, rejecter.username AS rejected_by_username
@@ -496,7 +505,7 @@ async function exportFullDatabase() {
         organization: data.dept || data.department || '',
         job: data.job || '', folder, photo: false, documents: [],
       };
-      const photo = row.photo_key ? await readEncryptedBlob(row.photo_key) : null;
+      const photo = row.photo_key ? await readExportBlob(row.photo_key) : null;
       employeeMeta.photoIncluded = !!photo;
       if (row.photo_key && !photo) indexEntry.photoMissing = true;
       if (photo) indexEntry.photo = true;
@@ -513,7 +522,7 @@ async function exportFullDatabase() {
 
       for (let i = 0; i < employeeDocs.length; i++) {
         const doc = employeeDocs[i];
-        const content = await readEncryptedBlob(doc.storage_key);
+        const content = await readExportBlob(doc.storage_key);
         if (content) {
           const original = normalizeFileName(doc.original_name || `document_${i + 1}`);
           const fileName = `${String(i + 1).padStart(2, "0")}_${original}`;
