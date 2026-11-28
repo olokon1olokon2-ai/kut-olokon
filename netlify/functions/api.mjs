@@ -496,22 +496,19 @@ async function exportFullDatabase() {
         organization: data.dept || data.department || '',
         job: data.job || '', folder, photo: false, documents: [],
       };
+      const photo = row.photo_key ? await readEncryptedBlob(row.photo_key) : null;
+      employeeMeta.photoIncluded = !!photo;
+      if (row.photo_key && !photo) indexEntry.photoMissing = true;
+      if (photo) indexEntry.photo = true;
 
       yield {
-        name: \`${folder}/employee_data.json\`,
+        name: `${folder}/employee_data.json`,
         data: Buffer.from(JSON.stringify(employeeMeta, null, 2), 'utf8'),
       };
 
-      if (row.photo_key) {
-        const photo = await readEncryptedBlob(row.photo_key);
-        if (photo) {
-          const ext = ({ 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' })[data.photoMime] || 'bin';
-          yield { name: \`${folder}/photo.${ext}\`, data: photo };
-          employeeMeta.photoIncluded = true;
-          indexEntry.photo = true;
-        } else {
-          indexEntry.photoMissing = true;
-        }
+      if (photo) {
+        const ext = ({ 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' })[data.photoMime] || 'bin';
+        yield { name: `${folder}/photo.${ext}`, data: photo };
       }
 
       for (let i = 0; i < employeeDocs.length; i++) {
