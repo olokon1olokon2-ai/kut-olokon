@@ -498,6 +498,7 @@ async function exportFullDatabase() {
       const folder = normalizeFileName(display).replace(/\s+/g, '_').slice(0, 70) + '_' + String(row.id).replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 12);
       const employeeMeta = {
         ...data,
+        fio: display,
         id: row.id,
         createdAt: iso(row.created_at),
         createdBy: String(row.created_by),
@@ -519,7 +520,7 @@ async function exportFullDatabase() {
       if (dataError) employeeMeta.exportError = dataError;
 
       const indexEntry = {
-        id: String(row.id), name: display,
+        id: String(row.id), name: display, fio: display,
         organization: data.dept || data.department || '',
         job: data.job || '', folder, photo: false, documents: [],
       };
