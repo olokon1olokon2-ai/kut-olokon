@@ -431,7 +431,7 @@ async function* makeZipStream(files) {
 
 async function exportFullDatabase() {
   const client = await database();
-  const employeeResult = await client.query(\`
+  const employeeResult = await client.query(`
     SELECT e.*, creator.username AS created_by_username,
       approver.username AS approved_by_username, rejecter.username AS rejected_by_username
     FROM employees e
@@ -439,11 +439,11 @@ async function exportFullDatabase() {
     LEFT JOIN users approver ON approver.id=e.approved_by
     LEFT JOIN users rejecter ON rejecter.id=e.rejected_by
     ORDER BY e.created_at, e.id
-  \`);
-  const docsResult = await client.query(\`
+  `);
+  const docsResult = await client.query(`
     SELECT id, employee_id, storage_key, original_name, mime_type, byte_size, created_at
     FROM documents ORDER BY created_at, id
-  \`);
+  `);
   const docsByEmployee = new Map();
   for (const doc of docsResult.rows) {
     const key = String(doc.employee_id);
@@ -515,11 +515,11 @@ async function exportFullDatabase() {
         const doc = employeeDocs[i];
         const content = await readEncryptedBlob(doc.storage_key);
         if (content) {
-          const original = normalizeFileName(doc.original_name || \`document_${i + 1}\`);
-          const fileName = \`${String(i + 1).padStart(2, "0")}_${original}\`;
-          yield { name: \`${folder}/passport_documents/${fileName}\`, data: content };
+          const original = normalizeFileName(doc.original_name || `document_${i + 1}`);
+          const fileName = `${String(i + 1).padStart(2, "0")}_${original}`;
+          yield { name: `${folder}/passport_documents/${fileName}`, data: content };
           indexEntry.documents.push({
-            id: doc.id, file: \`passport_documents/${fileName}\`,
+            id: doc.id, file: `passport_documents/${fileName}`,
             name: doc.original_name, size: Number(doc.byte_size),
           });
         } else {
