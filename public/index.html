@@ -289,17 +289,15 @@ $('printBtn').addEventListener('click',()=>{
 $('refreshBtn').addEventListener('click',async()=>{try{await loadEmployees()}catch(e){setStatus(e.message,true)}});
 // No background polling: the reviewer refreshes manually to avoid keeping Netlify Database awake.
 
- $('exportDatabaseBtn').addEventListener('click',async()=>{
+ $('exportDatabaseBtn').addEventListener('click',()=>{
   if(!confirm('Скачать полную копию базы? Архив будет содержать персональные данные, фотографии и сканы паспортов всех сотрудников. Исходная база останется без изменений. Храните ZIP-файл в защищённом месте.'))return;
-  const button=$('exportDatabaseBtn');button.disabled=true;button.textContent='Формирую архив...';
-  try{
-   const response=await fetch('/api/export/full-database',{credentials:'same-origin'});
-   if(response.status===401){location.href='/login';throw new Error('Сеанс закончился. Войдите снова.')}
-   if(!response.ok){const err=await response.json().catch(()=>({}));throw new Error(err.error||'Не удалось сформировать архив.')}
-   const blob=await response.blob();const url=URL.createObjectURL(blob);const link=document.createElement('a');
-   link.href=url;link.download='KUT_full_database.zip';document.body.appendChild(link);link.click();link.remove();URL.revokeObjectURL(url);
-  }catch(error){alert(error.message)}
-  finally{button.disabled=false;button.textContent='Скачать архив базы'}
+  // Native browser download streams the response directly to disk instead of buffering the whole ZIP in a Blob.
+  const link=document.createElement('a');
+  link.href='/api/export/full-database';
+  link.download='KUT_full_database.zip';
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
  });
 
  $('resetBtn').addEventListener('click',async()=>{if(!confirm('Удалить ВСЕ записи сотрудников и все паспортные файлы из общей базы? Это действие нельзя отменить.'))return;try{await api('/api/employees',{method:'DELETE'});await loadEmployees()}catch(e){alert(e.message)}});
