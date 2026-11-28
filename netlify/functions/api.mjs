@@ -527,15 +527,45 @@ async function exportFullDatabase() {
       if (dataError) indexEntry.dataError = dataError;
 
       let photo = null;
-      if (row.photo_key && !dataError) {
+      let photoKey = row.photo_key || data.photoKey || data.photo_key || data.photoStorageKey || '';
+      // Older uploads may have the photo object in R2 even if the database row
+      // no longer contains photo_key. Search only the employee's photo-* objects;
+      // passport documents use document-* keys and are never treated as photos.
+      const photoKeys = [];
+      if (photoKey) photoKeys.push(photoKey);
+      if (!dataError) {
         try {
-          photo = await readExportBlob(row.photo_key);
+          const listed = await exportBucket.list({ prefix: `employee/${row.id}/`, limit: 1000 });
+          for (const object of (listed.objects || [])) {
+            if (/\/photo-[^/]+$/.test(object.key) && !photoKeys.includes(object.key)) photoKeys.push(object.key);
+          }
         } catch (error) {
-          indexEntry.photoError = error?.message || 'Ошибка чтения фотографии';
+          indexEntry.photoLookupError = error?.message || 'Не удалось проверить фотографии в хранилище';
         }
       }
+      if (!dataError) {
+        for (const candidate of photoKeys) {
+          try {
+            photo = await readExportBlob(candidate);
+            if (photo) {
+              photoKey = candidate;
+              break;
+            }
+          } catch (error) {
+            indexEntry.photoError = error?.message || 'Ошибка чтения фотографии';
+          }
+        }
+      }
+      const detectedPhotoMime = photo
+        ? (photo.length >= 3 && photo[0] === 0xff && photo[1] === 0xd8 && photo[2] === 0xff ? 'image/jpeg'
+          : photo.length >= 8 && photo.subarray(0, 8).equals(Buffer.from([137,80,78,71,13,10,26,10])) ? 'image/png'
+          : photo.length >= 12 && photo.toString('ascii', 0, 4) === 'RIFF' && photo.toString('ascii', 8, 12) === 'WEBP' ? 'image/webp'
+          : data.photoMime || 'application/octet-stream')
+        : '';
       employeeMeta.photoIncluded = !!photo;
-      if (row.photo_key && !photo) indexEntry.photoMissing = true;
+      employeeMeta.photoFile = photo ? 'photo.' + (({ 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' })[detectedPhotoMime] || 'bin') : null;
+      if (photoKey && !photo) indexEntry.photoMissing = true;
+      if (!photoKey && !photo) indexEntry.photoMissing = true;
       if (photo) indexEntry.photo = true;
 
       yield {
@@ -544,7 +574,7 @@ async function exportFullDatabase() {
       };
 
       if (photo) {
-        const ext = ({ 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' })[data.photoMime] || 'bin';
+        const ext = ({ 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' })[detectedPhotoMime] || 'bin';
         yield { name: `${folder}/photo.${ext}`, data: photo };
       }
 
